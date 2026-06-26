@@ -11,8 +11,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     INFERENCE_MODEL_DIR=/models
 
-# libgomp1 is LightGBM's OpenMP runtime dependency.
+# Pull the latest security patches, then install libgomp1 (LightGBM's OpenMP dep).
 RUN apt-get update \
+    && apt-get -y upgrade \
     && apt-get install -y --no-install-recommends libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
