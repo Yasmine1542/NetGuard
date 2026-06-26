@@ -73,12 +73,10 @@ jobs:
           tags: ${{ steps.meta.outputs.image }}:${{ github.sha }}
 
       - name: Trivy scan (fail on HIGH/CRITICAL)
-        uses: aquasecurity/trivy-action@0.24.0
-        with:
-          image-ref: ${{ steps.meta.outputs.image }}:${{ github.sha }}
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: "1"
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+          trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 \
+            ${{ steps.meta.outputs.image }}:${{ github.sha }}
 
       - name: Push to GHCR (main only)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
