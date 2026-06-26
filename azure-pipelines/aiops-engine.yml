@@ -7,7 +7,7 @@ trigger:
 pool:
   vmImage: ubuntu-latest
 variables:
-  - group: netguard-acr
+  - group: netguard-registry
 steps:
   - template: templates/ci-steps.yml
     parameters:

@@ -1,9 +1,13 @@
 # Reusable CI steps for one NetGuard service: lint + test -> build -> Trivy scan
-# -> push to ACR. Scan happens BEFORE push, so a HIGH/CRITICAL CVE fails the run.
+# -> push. Scan happens BEFORE push, so a HIGH/CRITICAL CVE fails the run.
 #
-# Expects pipeline variables (from a variable group, e.g. "netguard-acr"):
-#   acrName              the ACR login server, e.g. netguardacr.azurecr.io
-#   acrServiceConnection the Docker Registry service connection name
+# Registry-agnostic: works with GHCR (free, for testing) or ACR (for the cluster)
+# by only changing the variable group — no YAML change. Expected variables
+# (group "netguard-registry"):
+#   registryConnection   Docker Registry service connection name
+#   registryHost         registry host, e.g. ghcr.io  or  netguardacr.azurecr.io
+#   imageRepoPrefix      repository prefix, e.g. "yasmine1542/netguard-" (GHCR)
+#                        or "netguard-" (ACR)
 parameters:
   - name: name          # service name (inference, collector, ...)
     type: string
@@ -42,8 +46,8 @@ steps:
     displayName: Build image
     inputs:
       command: build
-      containerRegistry: $(acrServiceConnection)
-      repository: netguard-${{ parameters.name }}
+      containerRegistry: $(registryConnection)
+      repository: $(imageRepoPrefix)${{ parameters.name }}
       dockerfile: ${{ parameters.dockerfile }}
       buildContext: ${{ parameters.context }}
       tags: |
@@ -53,15 +57,15 @@ steps:
   - script: |
       curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
       trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 \
-        $(acrName)/netguard-${{ parameters.name }}:$(Build.BuildId)
+        $(registryHost)/$(imageRepoPrefix)${{ parameters.name }}:$(Build.BuildId)
     displayName: Trivy image scan (fail on HIGH/CRITICAL)
 
   - task: Docker@2
-    displayName: Push image to ACR
+    displayName: Push image
     inputs:
       command: push
-      containerRegistry: $(acrServiceConnection)
-      repository: netguard-${{ parameters.name }}
+      containerRegistry: $(registryConnection)
+      repository: $(imageRepoPrefix)${{ parameters.name }}
       tags: |
         $(Build.BuildId)
         latest
