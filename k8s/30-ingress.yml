@@ -1,0 +1,30 @@
+# TLS terminates here; everything forwards to the frontend pod, whose nginx
+# edge-routes /api and /ws to backend-api / collector / aiops-engine (the same
+# nginx.conf used in docker-compose, so routing lives in exactly one place).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: netguard
+  namespace: netguard
+  annotations:
+    "nginx.ingress.kubernetes.io/ssl-redirect": "true"
+    "cert-manager.io/cluster-issuer": "cluster-ca"
+    # WebSocket: keep long-lived upgrades open through the ingress.
+    "nginx.ingress.kubernetes.io/proxy-read-timeout": "3600"
+    "nginx.ingress.kubernetes.io/proxy-send-timeout": "3600"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: ["netguard.cluster.lan"]
+      secretName: netguard-tls
+  rules:
+    - host: netguard.cluster.lan
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80

@@ -1,0 +1,17 @@
+trigger:
+  branches:
+    include: [main]
+  paths:
+    include:
+      - services/collector/**
+pool:
+  vmImage: ubuntu-latest
+variables:
+  - group: netguard-acr
+steps:
+  - template: templates/ci-steps.yml
+    parameters:
+      name: collector
+      context: services/collector
+      dockerfile: services/collector/Dockerfile
+      kind: python

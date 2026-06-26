@@ -1,0 +1,17 @@
+trigger:
+  branches:
+    include: [main]
+  paths:
+    include:
+      - frontend/**
+pool:
+  vmImage: ubuntu-latest
+variables:
+  - group: netguard-acr
+steps:
+  - template: templates/ci-steps.yml
+    parameters:
+      name: frontend
+      context: frontend
+      dockerfile: frontend/Dockerfile
+      kind: frontend

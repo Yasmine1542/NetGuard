@@ -1,0 +1,20 @@
+# CI for the inference service. Built from the repo root context so the model is
+# baked in (see services/inference/Dockerfile).
+trigger:
+  branches:
+    include: [main]
+  paths:
+    include:
+      - services/inference/**
+      - model/artifacts/**
+pool:
+  vmImage: ubuntu-latest
+variables:
+  - group: netguard-acr
+steps:
+  - template: templates/ci-steps.yml
+    parameters:
+      name: inference
+      context: "."
+      dockerfile: services/inference/Dockerfile
+      kind: python

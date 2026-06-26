@@ -1,0 +1,17 @@
+trigger:
+  branches:
+    include: [main]
+  paths:
+    include:
+      - services/backend-api/**
+pool:
+  vmImage: ubuntu-latest
+variables:
+  - group: netguard-acr
+steps:
+  - template: templates/ci-steps.yml
+    parameters:
+      name: backend-api
+      context: services/backend-api
+      dockerfile: services/backend-api/Dockerfile
+      kind: python

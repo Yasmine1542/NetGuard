@@ -1,0 +1,219 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background-color: #f0f3f8;
+  color: #0f1729;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ── Scrollbars ──────────────────────────────────────────── */
+::-webkit-scrollbar         { width: 5px; height: 5px; }
+::-webkit-scrollbar-track   { background: #f0f3f8; }
+::-webkit-scrollbar-thumb   { background: #c8d0e4; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #a8b4cc; }
+
+/* ── Tables ──────────────────────────────────────────────── */
+.tbl { width: 100%; border-collapse: collapse; }
+
+.tbl thead th {
+  background: #f6f8fc;
+  color: #475680;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  border-bottom: 1px solid #dce1ee;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.tbl tbody tr {
+  border-bottom: 1px solid #eaecf5;
+  transition: background 0.06s;
+}
+
+.tbl tbody tr:hover { background: #f0f4fc; }
+
+.tbl tbody td {
+  padding: 5px 10px;
+  color: #0f1729;
+  vertical-align: middle;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.tbl tbody td.col-label {
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 12px;
+  color: #475680;
+}
+
+/* ── Status badges ───────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 3px;
+  white-space: nowrap;
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+.badge-ok     { background: #dcfce7; color: #065f46; border: 1px solid #a7f3d0; }
+.badge-warn   { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+.badge-crit   { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+.badge-info   { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+.badge-purp   { background: #ede9fe; color: #5b21b6; border: 1px solid #c4b5fd; }
+.badge-muted  { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
+
+/* ── Status dot ──────────────────────────────────────────── */
+.dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot-ok   { background: #0a7c52; }
+.dot-warn { background: #c47a0a; }
+.dot-crit { background: #d42b2b; }
+.dot-info { background: #1a56db; }
+.dot-mut  { background: #8e9ab8; }
+
+/* ── Card / Panel ────────────────────────────────────────── */
+.card {
+  background: #ffffff;
+  border: 1px solid #dce1ee;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(15,23,41,0.06);
+}
+
+.card-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid #eaecf5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #475680;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+/* ── Sidebar nav ─────────────────────────────────────────── */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  font-size: 12px;
+  color: #475680;
+  cursor: pointer;
+  border-radius: 0;
+  transition: background 0.08s, color 0.08s;
+  white-space: nowrap;
+  border-left: 2px solid transparent;
+  width: 100%;
+  background: none;
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+}
+
+.nav-item:hover  { background: #eaeff8; color: #0f1729; }
+
+.nav-item.active {
+  background: #e8effe;
+  color: #1a56db;
+  border-left-color: #1a56db;
+  font-weight: 500;
+}
+
+.nav-section {
+  padding: 14px 14px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #8e9ab8;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ── Metric display ──────────────────────────────────────── */
+.metric-value {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.metric-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #8e9ab8;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ── Progress bar ────────────────────────────────────────── */
+.progress-track {
+  height: 4px;
+  background: #dce1ee;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+/* ── Input ───────────────────────────────────────────────── */
+.ent-input {
+  background: #f6f8fc;
+  border: 1px solid #dce1ee;
+  border-radius: 4px;
+  color: #0f1729;
+  font-size: 12px;
+  padding: 4px 8px;
+  outline: none;
+  font-family: "JetBrains Mono", monospace;
+}
+
+.ent-input:focus { border-color: #1a56db; box-shadow: 0 0 0 2px rgba(26,86,219,0.12); }
+
+/* ── Divider ─────────────────────────────────────────────── */
+.divider { border-top: 1px solid #eaecf5; }
+
+/* ── Blink ───────────────────────────────────────────────── */
+.blink { animation: blink 1.2s step-end infinite; }
+@keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
+
+/* ── Stat chip ───────────────────────────────────────────── */
+.stat-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  background: #ffffff;
+  border: 1px solid #dce1ee;
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(15,23,41,0.05);
+}

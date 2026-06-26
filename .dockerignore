@@ -1,0 +1,26 @@
+# This .dockerignore applies to builds whose context is demo-app/ — only the
+# inference image is built that way (it needs model/artifacts). Keep the context
+# lean: just services/inference + model/artifacts are required.
+**/.venv
+**/venv
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/tests
+*.log
+.git
+.github
+docs
+frontend
+services/collector
+services/backend-api
+services/aiops-engine
+deploy
+*.md
+docker-compose.yml
+.env
+.env.*

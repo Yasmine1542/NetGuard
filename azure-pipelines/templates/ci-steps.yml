@@ -1,0 +1,67 @@
+# Reusable CI steps for one NetGuard service: lint + test -> build -> Trivy scan
+# -> push to ACR. Scan happens BEFORE push, so a HIGH/CRITICAL CVE fails the run.
+#
+# Expects pipeline variables (from a variable group, e.g. "netguard-acr"):
+#   acrName              the ACR login server, e.g. netguardacr.azurecr.io
+#   acrServiceConnection the Docker Registry service connection name
+parameters:
+  - name: name          # service name (inference, collector, ...)
+    type: string
+  - name: context       # docker build context
+    type: string
+  - name: dockerfile    # path to the Dockerfile
+    type: string
+  - name: kind          # python | frontend
+    type: string
+    default: python
+
+steps:
+  - ${{ if eq(parameters.kind, 'python') }}:
+      - task: UsePythonVersion@0
+        inputs:
+          versionSpec: "3.12"
+      - script: pip install -r services/${{ parameters.name }}/requirements-dev.txt
+        displayName: Install dev deps
+      - script: |
+          cd services/${{ parameters.name }}
+          ruff check .
+          pytest -q
+        displayName: Lint + unit tests
+
+  - ${{ if eq(parameters.kind, 'frontend') }}:
+      - task: NodeTool@0
+        inputs:
+          versionSpec: "18.x"
+      - script: |
+          cd frontend
+          npm ci
+          npm run build
+        displayName: Build frontend
+
+  - task: Docker@2
+    displayName: Build image
+    inputs:
+      command: build
+      containerRegistry: $(acrServiceConnection)
+      repository: netguard-${{ parameters.name }}
+      dockerfile: ${{ parameters.dockerfile }}
+      buildContext: ${{ parameters.context }}
+      tags: |
+        $(Build.BuildId)
+        latest
+
+  - script: |
+      curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+      trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 \
+        $(acrName)/netguard-${{ parameters.name }}:$(Build.BuildId)
+    displayName: Trivy image scan (fail on HIGH/CRITICAL)
+
+  - task: Docker@2
+    displayName: Push image to ACR
+    inputs:
+      command: push
+      containerRegistry: $(acrServiceConnection)
+      repository: netguard-${{ parameters.name }}
+      tags: |
+        $(Build.BuildId)
+        latest

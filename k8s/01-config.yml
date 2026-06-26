@@ -1,0 +1,31 @@
+# Shared non-secret configuration. Every service reads only the keys it needs
+# (pydantic-settings ignores the rest); the lifted aiops tools read the
+# unprefixed PROMETHEUS_URL/LOKI_URL/GROQ_MODEL.
+#
+# Secrets (GROQ_API_KEY, POSTGRES_PASSWORD, AIOPS_DB_URL) are NOT here — create
+# the `netguard-secrets` Secret out-of-band (see deploy/netguard-secrets.example.yml).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: netguard-config
+  namespace: netguard
+data:
+  INFERENCE_MODEL_DIR: "/models"
+
+  COLLECTOR_INFERENCE_URL: "http://inference:8000"
+  COLLECTOR_REDIS_URL: "redis://redis:6379/0"
+  COLLECTOR_INTERVAL_SECONDS: "2"
+
+  API_REDIS_URL: "redis://redis:6379/0"
+  API_INFERENCE_URL: "http://inference:8000"
+  API_AIOPS_URL: "http://aiops-engine:8000"
+  API_PROMETHEUS_URL: "http://prometheus-operated.monitoring.svc.cluster.local:9090"
+  API_LOKI_URL: "http://loki-gateway.monitoring.svc.cluster.local:80"
+
+  # Read directly by the lifted aiops tools (unprefixed).
+  PROMETHEUS_URL: "http://prometheus-operated.monitoring.svc.cluster.local:9090"
+  LOKI_URL: "http://loki-gateway.monitoring.svc.cluster.local:80"
+  GROQ_MODEL: "llama-3.3-70b-versatile"
+
+  POSTGRES_USER: "aiops"
+  POSTGRES_DB: "aiops"

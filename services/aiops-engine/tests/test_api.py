@@ -1,0 +1,26 @@
+"""API smoke tests. The k8s client is unavailable in CI, so /cluster returns the
+package's mock snapshot — deterministic and offline."""
+
+from fastapi.testclient import TestClient
+
+from app import main
+from app.aiops import db
+
+
+def test_healthz():
+    client = TestClient(main.app)
+    assert client.get("/healthz").json() == {"status": "ok"}
+
+
+def test_cluster_returns_summary():
+    client = TestClient(main.app)
+    body = client.get("/cluster").json()
+    # mock snapshot reports 4 nodes when off-cluster
+    assert "nodes_total" in body
+
+
+def test_incidents_empty_then_listed(monkeypatch):
+    monkeypatch.setattr(db, "DB_URL", "")
+    db._memory_store.clear()
+    client = TestClient(main.app)
+    assert client.get("/api/incidents").json() == []

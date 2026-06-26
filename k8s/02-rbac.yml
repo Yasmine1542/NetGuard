@@ -1,0 +1,32 @@
+# ServiceAccount the aiops-engine runs as — the Triage/Evidence agents read pods,
+# events, nodes and deployments cluster-wide via the in-cluster client.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: netguard-aiops
+  namespace: netguard
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: netguard-aiops
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "events", "nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: netguard-aiops
+subjects:
+  - kind: ServiceAccount
+    name: netguard-aiops
+    namespace: netguard
+roleRef:
+  kind: ClusterRole
+  name: netguard-aiops
+  apiGroup: rbac.authorization.k8s.io

@@ -1,0 +1,28 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+mlruns/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Node
+node_modules/
+frontend/dist/
+.vite/
+
+# model/artifacts/*.pkl are intentionally tracked as seed files for initial deployment.
+# After the MLOps pipeline runs, models are managed via MLflow — do not re-commit pkl files.
+model/artifacts/model.joblib
+
+# Local dev — never commit real env values
+.env
+.env.*
+!.env.example
+*.log
