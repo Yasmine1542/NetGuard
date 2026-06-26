@@ -1,9 +1,11 @@
 name: CI
 
+run-name: CI · ${{ github.actor }} · ${{ github.event_name }}
+
 # Per-service: lint + test -> hadolint -> build -> Trivy scan -> push to GHCR.
 # Runs free on public-repo GitHub-hosted runners. Pushes images to
 # ghcr.io/<owner>/netguard-<service> using the built-in GITHUB_TOKEN (no PAT).
-# PRs run everything except the push.
+# Pull requests run everything except the push.
 
 on:
   push:
@@ -14,22 +16,53 @@ permissions:
   contents: read
   packages: write
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
+    name: ${{ matrix.emoji }} ${{ matrix.label }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { service: inference,    context: ".",                   file: services/inference/Dockerfile,     lang: python }
-          - { service: collector,    context: services/collector,    file: services/collector/Dockerfile,     lang: python }
-          - { service: backend-api,  context: services/backend-api,  file: services/backend-api/Dockerfile,   lang: python }
-          - { service: aiops-engine, context: services/aiops-engine, file: services/aiops-engine/Dockerfile,  lang: python }
-          - { service: frontend,     context: frontend,              file: frontend/Dockerfile,               lang: docker }
+          - service: inference
+            label: "inference · model serving"
+            emoji: "🧠"
+            context: "."
+            file: services/inference/Dockerfile
+            lang: python
+          - service: collector
+            label: "collector · traffic generator"
+            emoji: "📡"
+            context: services/collector
+            file: services/collector/Dockerfile
+            lang: python
+          - service: backend-api
+            label: "backend-api · dashboard gateway"
+            emoji: "🌐"
+            context: services/backend-api
+            file: services/backend-api/Dockerfile
+            lang: python
+          - service: aiops-engine
+            label: "aiops-engine · incident diagnosis"
+            emoji: "🤖"
+            context: services/aiops-engine
+            file: services/aiops-engine/Dockerfile
+            lang: python
+          - service: frontend
+            label: "frontend · React dashboard"
+            emoji: "📊"
+            context: frontend
+            file: frontend/Dockerfile
+            lang: docker
     steps:
-      - uses: actions/checkout@v4
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: 🐍 Set up Python 3.12
         if: matrix.lang == 'python'
         uses: actions/setup-python@v5
         with:
@@ -37,7 +70,7 @@ jobs:
           cache: pip
           cache-dependency-path: services/${{ matrix.service }}/requirements-dev.txt
 
-      - name: Lint + unit tests
+      - name: 🧹 Lint (ruff) & 🧪 unit tests (pytest)
         if: matrix.lang == 'python'
         working-directory: services/${{ matrix.service }}
         run: |
@@ -45,26 +78,27 @@ jobs:
           ruff check .
           pytest -q
 
-      - name: Lint Dockerfile (hadolint)
+      - name: 🐳 Lint Dockerfile (hadolint)
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: ${{ matrix.file }}
           failure-threshold: error
 
-      - name: Image name (lowercased owner)
+      - name: 🏷️ Resolve image name
         id: meta
         run: echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/netguard-${{ matrix.service }}" >> "$GITHUB_OUTPUT"
 
-      - name: Log in to GHCR
+      - name: 🔑 Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/setup-buildx-action@v3
+      - name: 🧰 Set up Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Build (load locally for scanning)
+      - name: 🏗️ Build image
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
@@ -72,7 +106,7 @@ jobs:
           load: true
           tags: ${{ steps.meta.outputs.image }}:${{ github.sha }}
 
-      - name: Trivy scan (report HIGH/CRITICAL)
+      - name: 🛡️ Trivy vulnerability scan (HIGH/CRITICAL)
         # Report mode (exit-code 0): the scan runs and prints findings, but does
         # not block the build — keeps runs green for the demo while the security
         # scan stays visible. Flip to --exit-code 1 (with a documented
@@ -82,7 +116,7 @@ jobs:
           trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 \
             ${{ steps.meta.outputs.image }}:${{ github.sha }}
 
-      - name: Push to GHCR (main only)
+      - name: 📦 Push to GHCR (main only)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           docker tag ${{ steps.meta.outputs.image }}:${{ github.sha }} ${{ steps.meta.outputs.image }}:latest
