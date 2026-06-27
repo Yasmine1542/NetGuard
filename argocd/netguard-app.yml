@@ -19,7 +19,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: REPO_URL_PLACEHOLDER
+    repoURL: https://github.com/Yasmine1542/NetGuard.git
     targetRevision: main
     path: k8s
     directory:

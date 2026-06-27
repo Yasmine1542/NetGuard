@@ -18,7 +18,7 @@ spec:
       imagePullSecrets: [{ name: registry-secret }]
       containers:
         - name: aiops-engine
-          image: REGISTRY_PLACEHOLDER/netguard-aiops-engine:latest
+          image: ghcr.io/yasmine1542/netguard-aiops-engine:latest
           imagePullPolicy: Always
           envFrom:
             - configMapRef: { name: netguard-config }

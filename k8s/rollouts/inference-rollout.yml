@@ -32,7 +32,7 @@ spec:
       imagePullSecrets: [{ name: registry-secret }]
       containers:
         - name: inference
-          image: REGISTRY_PLACEHOLDER/netguard-inference:latest
+          image: ghcr.io/yasmine1542/netguard-inference:latest
           imagePullPolicy: Always
           envFrom:
             - configMapRef: { name: netguard-config }

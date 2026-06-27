@@ -17,7 +17,7 @@ spec:
       imagePullSecrets: [{ name: registry-secret }]
       containers:
         - name: collector
-          image: REGISTRY_PLACEHOLDER/netguard-collector:latest
+          image: ghcr.io/yasmine1542/netguard-collector:latest
           imagePullPolicy: Always
           envFrom:
             - configMapRef: { name: netguard-config }
