@@ -18,7 +18,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -104,7 +104,11 @@ async def analyze(req: AnalyzeRequest) -> dict:
 
 
 @app.post("/api/aiops/webhook")
-async def alertmanager_webhook(payload: dict) -> dict:
+async def alertmanager_webhook(payload: dict, authorization: str = Header(default="")) -> dict:
+    # When a token is configured, require it (Alertmanager sends it as a bearer
+    # token via http_config.authorization). Empty token = open (local dev only).
+    if settings.webhook_token and authorization != f"Bearer {settings.webhook_token}":
+        raise HTTPException(status_code=401, detail="invalid or missing webhook token")
     triggered = []
     for alert in payload.get("alerts", []):
         labels = alert.get("labels", {})

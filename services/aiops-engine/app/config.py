@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     groq_model: str = Field(default="openai/gpt-oss-120b", validation_alias="GROQ_MODEL")
     db_url: str = Field(default="", validation_alias="AIOPS_DB_URL")
     cors_origins: list[str] = Field(default_factory=list, validation_alias="AIOPS_CORS_ORIGINS")
+    # Shared secret for the Alertmanager webhook. Empty = open (local dev); when
+    # set, callers must send `Authorization: Bearer <token>`.
+    webhook_token: str = Field(default="", validation_alias="AIOPS_WEBHOOK_TOKEN")
 
 
 settings = Settings()

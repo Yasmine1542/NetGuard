@@ -26,6 +26,17 @@ FAILURE_QUERIES: dict[str, dict[str, str]] = {
         "node_cpu":       'kube_node_status_allocatable{{resource="cpu"}}',
         "pvc_bound":      'kube_persistentvolumeclaim_status_phase{{namespace="{namespace}"}}',
     },
+    # Node-level failures: pod metrics are the wrong signal, so query node state.
+    "Evicted": {
+        "node_memory_pressure": 'kube_node_status_condition{{condition="MemoryPressure", status="true"}}',
+        "node_disk_pressure":   'kube_node_status_condition{{condition="DiskPressure", status="true"}}',
+        "evicted_pods":         'kube_pod_status_reason{{reason="Evicted"}}',
+    },
+    "NodeNotReady": {
+        "node_ready":   'kube_node_status_condition{{condition="Ready", status="true"}}',
+        "node_unready": 'kube_node_status_condition{{condition="Ready", status="false"}}',
+        "kubelet_up":   'up{{job="kubelet"}}',
+    },
     "default": {
         "cpu_usage":      'rate(container_cpu_usage_seconds_total{{pod=~"{pod}.*", container!=""}}[5m])',
         "memory_usage":   'container_memory_working_set_bytes{{pod=~"{pod}.*", container!=""}}',

@@ -24,3 +24,19 @@ def test_incidents_empty_then_listed(monkeypatch):
     db._memory_store.clear()
     client = TestClient(main.app)
     assert client.get("/api/incidents").json() == []
+
+
+def test_webhook_requires_token_when_configured(monkeypatch):
+    async def _noop(*args, **kwargs):
+        return {}
+    monkeypatch.setattr(main, "run_pipeline", _noop)
+    monkeypatch.setattr(main.settings, "webhook_token", "s3cret")
+    client = TestClient(main.app)
+    payload = {"alerts": []}
+
+    assert client.post("/api/aiops/webhook", json=payload).status_code == 401
+    assert client.post("/api/aiops/webhook", json=payload,
+                       headers={"Authorization": "Bearer wrong"}).status_code == 401
+    ok = client.post("/api/aiops/webhook", json=payload,
+                     headers={"Authorization": "Bearer s3cret"})
+    assert ok.status_code == 200
