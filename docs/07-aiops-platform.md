@@ -163,7 +163,12 @@ LLM gets a compact, decision-ready summary rather than thousands of raw points.
 
 **`loki.py`** — pulls the last N log lines for the pod and separates out
 error/warning lines by keyword, so the Evidence agent gets both the tail and the
-errors.
+errors. **Redaction (`redact.py`):** because logs are the highest-risk text and
+they leave the cluster to the LLM, each line is scrubbed *here* — auth headers,
+provider tokens, cloud keys, connection-string passwords, `key=value` secrets and
+emails are replaced before the evidence is ever sent. IPs are kept (operationally
+relevant to a network tool, not PII on their own). It is a best-effort,
+documented control, not a guarantee.
 
 ---
 
@@ -223,9 +228,14 @@ reasons step by step:
   "severity": "HIGH|MED|LOW", "affected_components": ["..."] }
 ```
 
-The **confidence** is the hook for autonomy later (§10): a calibrated 0–1 the
-remediation step can threshold on. The prompt anchors the scale (0.9–1.0 = a log
-line directly shows the cause; <0.5 = insufficient evidence, flag it).
+The **confidence** is a **rubric-anchored, self-reported** 0–1 — the prompt anchors
+the scale (0.9–1.0 = a log line directly shows the cause; <0.5 = insufficient
+evidence, flag it). It is deliberately **not** called *calibrated*: calibration is
+an empirical property (do 0.9-confidence diagnoses turn out correct ~90% of the
+time?) that requires a measured study (reliability diagram / ECE). Until that
+exists, the confidence is a useful triage signal, but remediation stays
+**propose-only with a human approver** — it is not used to gate autonomous changes
+(§10).
 
 ### 5.4 Postmortem — *blameless report + action items*
 
@@ -280,12 +290,14 @@ WebSocket messages for the live timeline. The noise short-circuit lives here.
 ## 7. Persistence — `db.py`
 
 `asyncpg` to PostgreSQL when `AIOPS_DB_URL` is set, otherwise an in-memory dict
-(local dev / demos). The JSON-bearing columns are stored as **TEXT** and
-round-tripped with `json.dumps`/`json.loads`, which sidesteps asyncpg/JSONB
-binding quirks while preserving exact behaviour. `save_incident` upserts the full
-record; `update_incident_step` patches a single agent's column as the pipeline
-progresses; `list_incidents` returns summary fields for the table view;
-`get_incident` returns the full record for the detail view.
+(local dev / demos). The JSON-bearing columns are **JSONB**, with an asyncpg codec
+that encodes/decodes Python objects — the agents store dicts/lists directly and
+reads come back parsed. JSONB (over TEXT blobs) is what makes the data
+**queryable**: `WHERE (rca_output->>'confidence')::float > 0.8` for the evaluation,
+and the SQL-similarity incident-memory plan (§10). `save_incident` upserts the full
+record (timestamps coerced to `datetime` for the `TIMESTAMPTZ` columns);
+`update_incident_step` patches one agent's column as the pipeline progresses;
+`list_incidents` returns summary fields; `get_incident` the full record.
 
 ---
 
@@ -294,7 +306,7 @@ progresses; `list_incidents` returns summary fields for the table view;
 | Endpoint | Purpose |
 |---|---|
 | `POST /api/aiops/analyze` | manual trigger (fire-and-forget task) |
-| `POST /api/aiops/webhook` | Alertmanager receiver — one pipeline per alert |
+| `POST /api/aiops/webhook` | Alertmanager receiver (Bearer-token auth) — one pipeline per alert |
 | `GET /api/incidents` | list (table view) |
 | `GET /api/incidents/{id}` | full record (detail view) |
 | `PATCH /api/incidents/{id}/status` | resolve / suppress |
@@ -303,7 +315,12 @@ progresses; `list_incidents` returns summary fields for the table view;
 
 `run_pipeline` is launched as an `asyncio` task and its `on_step` callback
 broadcasts `{type: "aiops_step", step, status, data}` to the matching WebSocket
-subscribers, which is what drives the dashboard's animated 4-agent timeline.
+subscribers, which is what drives the dashboard's animated 4-agent timeline. Every
+incident and `/cluster` response carries a `data_source: live|mock` field so a
+misconfigured deployment can never pass mock data off as real; degraded fallbacks
+(from a transient failure) are flagged `degraded: true` rather than looking like a
+clean result, and a failed collection becomes an **INCONCLUSIVE** incident, never
+NOISE.
 
 ---
 
@@ -343,8 +360,11 @@ flowchart LR
 2. **Verify agent.** After a fix is applied, re-run Triage and confirm the system
    converged to healthy (or escalate). This proves *reconciliation*, not just a
    one-shot action — the demo's money shot.
-3. **Confidence-gated autonomy.** Use the RCA `confidence` (already produced):
-   high → auto-remediate; low → human-in-the-loop. A real, defensible SRE pattern.
+3. **Confidence-gated autonomy (only after a calibration study).** Use the RCA
+   `confidence`: high → auto-remediate; low → human-in-the-loop. This first
+   requires **measuring calibration** (reliability diagram / ECE over many runs) —
+   gating live cluster changes on an unvalidated self-reported number is unsafe,
+   so until then remediation stays propose-only with a human approver.
 4. **Incident memory.** Have RCA retrieve similar past incidents from the Postgres
    store (keyword/SQL similarity — no vector DB needed) so it can cite precedent
    and improve over time. Turns the postmortem store into a learning loop.
