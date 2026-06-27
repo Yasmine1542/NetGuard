@@ -72,7 +72,20 @@ async def run_pipeline(
     await update_incident_step(incident_id, "triage", triage_output)
     await on_step("triage", "done", triage_output)
 
-    # If triage says this is noise, stop early
+    # Collection/reasoning failure must never look like an all-clear: mark the
+    # incident INCONCLUSIVE (needs review) and stop, rather than silently dropping
+    # it as noise. This also protects the future Verify agent.
+    if triage_output.get("collection_failed", False):
+        incident["status"] = "INCONCLUSIVE"
+        incident["failure_mode"] = triage_output.get("failure_mode", "Unknown")
+        incident["namespace"] = triage_output.get("affected_namespace", "unknown")
+        incident["duration_s"] = round(time.perf_counter() - start_time, 1)
+        await save_incident(incident)
+        await on_step("pipeline", "inconclusive", incident)
+        return incident
+
+    # If triage says this is genuine noise (collection succeeded, nothing failing),
+    # stop early.
     if triage_output.get("is_noise", False):
         incident["status"] = "NOISE"
         incident["duration_s"] = round(time.perf_counter() - start_time, 1)

@@ -48,6 +48,13 @@ Rules:
 - Be concise. Do not output anything outside the JSON object."""
 
 
+def _has_error(signal) -> bool:
+    """True if a collector returned a Kubernetes API error (not just empty)."""
+    return isinstance(signal, list) and any(
+        isinstance(item, dict) and "error" in item for item in signal
+    )
+
+
 def _collect_signals(trigger: dict) -> dict:
     """Run the fixed set of triage queries and return a signals bundle."""
     namespace = trigger.get("namespace") or None
@@ -65,10 +72,16 @@ def _collect_signals(trigger: dict) -> dict:
     events = get_k8s_events(ns_for_events) if ns_for_events else []
     nodes = get_node_status()
 
+    # Collection "failed" only when a real K8s API call errored. Off-cluster mock
+    # data is intentional (demo), not a failure — it counts as a good collection.
+    # This distinction is what stops an API hiccup from masquerading as all-clear.
+    collection_ok = not (_has_error(unhealthy) or _has_error(events) or _has_error(nodes))
+
     return {
         "unhealthy_pods": unhealthy,
         "warning_events": events,
         "node_status":    nodes,
+        "collection_ok":  collection_ok,
     }
 
 
@@ -79,6 +92,24 @@ async def run_triage(trigger: dict) -> dict:
     """
     namespace = trigger.get("namespace", "")
     signals = _collect_signals(trigger)
+
+    # Graceful degradation must never look like an all-clear: if signal collection
+    # failed, the incident is INCONCLUSIVE (needs review), not noise. Short-circuit
+    # before the LLM — there is nothing reliable to reason over.
+    if not signals.get("collection_ok", True):
+        return {
+            "affected_pods":      [],
+            "affected_namespace": namespace or "unknown",
+            "failure_mode":       "Unknown",
+            "restart_count":      0,
+            "first_failure_time": "unknown",
+            "affected_node":      "unknown",
+            "severity":           "LOW",
+            "is_noise":           False,
+            "collection_failed":  True,
+            "summary": "Signal collection failed (Kubernetes API error) — "
+                       "diagnosis inconclusive, needs review.",
+        }
 
     prompt = ChatPromptTemplate.from_messages([
         ("system", TRIAGE_SYSTEM_PROMPT),
@@ -106,6 +137,7 @@ Determine the incident scope. Return JSON only."""),
             output = output.split("```")[1].lstrip("json").strip()
         return json.loads(output)
     except Exception as e:
+        # An LLM/reasoning failure is inconclusive — never report it as all-clear.
         return {
             "affected_pods":       [],
             "affected_namespace":  namespace or "unknown",
@@ -114,7 +146,8 @@ Determine the incident scope. Return JSON only."""),
             "first_failure_time":  "unknown",
             "affected_node":       "unknown",
             "severity":            "LOW",
-            "is_noise":            True,
-            "summary":             f"Triage failed: {e}",
+            "is_noise":            False,
+            "collection_failed":   True,
+            "summary":             f"Triage reasoning failed ({e}) — inconclusive, needs review.",
             "error":               str(e),
         }

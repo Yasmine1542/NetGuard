@@ -60,3 +60,22 @@ async def test_noise_triage_short_circuits(monkeypatch):
 
     assert incident["status"] == "NOISE"
     assert incident["evidence"] is None  # evidence agent never ran
+
+
+async def test_collection_failure_is_inconclusive_not_noise(monkeypatch):
+    """A failed collection must mark the incident INCONCLUSIVE, never NOISE,
+    and must not run the downstream agents."""
+    monkeypatch.setattr(db, "DB_URL", "")
+    db._memory_store.clear()
+
+    async def fake_triage(trigger):
+        return {
+            "collection_failed": True, "is_noise": False,
+            "failure_mode": "Unknown", "affected_namespace": "netguard",
+        }
+    monkeypatch.setattr(pipeline, "run_triage", fake_triage)
+
+    incident = await pipeline.run_pipeline({"trigger_source": "manual"})
+
+    assert incident["status"] == "INCONCLUSIVE"
+    assert incident["evidence"] is None
