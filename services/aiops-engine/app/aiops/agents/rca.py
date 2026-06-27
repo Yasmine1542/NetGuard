@@ -96,5 +96,6 @@ Perform root cause analysis. Return JSON only."""),
             "ruled_out":           [],
             "severity":            triage_output.get("severity", "LOW"),
             "affected_components": triage_output.get("affected_pods", []),
+            "degraded":            True,
             "error":               str(e),
         }

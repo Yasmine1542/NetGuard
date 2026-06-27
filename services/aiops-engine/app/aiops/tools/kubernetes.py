@@ -287,7 +287,15 @@ def get_cluster_summary() -> dict:
         "namespaces":     len(ns_counts),
         "nodes":          node_list,
         "namespace_pods": ns_list,
+        "data_source":    "live",
     }
+
+
+def data_source() -> str:
+    """'live' when reading the real cluster, 'mock' when serving demo fallback
+    data off-cluster — surfaced so a misconfigured deployment never passes mock
+    data off as real."""
+    return "live" if K8S_AVAILABLE else "mock"
 
 
 # ── Mock data for local dev (no cluster) ─────────────────────────────────────
@@ -315,6 +323,7 @@ def _mock_cluster_summary() -> dict:
             {"name": "monitoring", "pods": 9},
             {"name": "netguard", "pods": 6},
         ],
+        "data_source": "mock",
     }
 
 

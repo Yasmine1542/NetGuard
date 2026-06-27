@@ -125,5 +125,6 @@ Summarize the evidence. Return JSON only."""),
             "recent_deployment": bool(signals["recent_deployments"]),
             "deployment_detail": "",
             "raw_evidence":     raw_evidence,
+            "degraded":         True,
             "error":            str(e),
         }

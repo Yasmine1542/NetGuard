@@ -19,6 +19,7 @@ from .agents.evidence   import run_evidence
 from .agents.rca        import run_rca
 from .agents.postmortem import run_postmortem
 from .db                import save_incident, update_incident_step
+from .tools.kubernetes  import data_source
 
 
 StepCallback = Callable[[str, str, dict], Awaitable[None]]
@@ -54,6 +55,7 @@ async def run_pipeline(
         "trigger_source": trigger.get("trigger_source", "manual"),
         "trigger_raw":    trigger,
         "status":         "ANALYZING",
+        "data_source":    data_source(),
         "triage":         None,
         "evidence":       None,
         "rca":            None,

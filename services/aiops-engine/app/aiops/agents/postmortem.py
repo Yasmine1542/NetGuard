@@ -103,5 +103,6 @@ Write the blameless postmortem. Return JSON only."""),
             "action_items":         [],
             "lessons_learned":      "Postmortem could not be generated automatically.",
             "blameless_statement":  "No individual is at fault.",
+            "degraded":             True,
             "error":                str(e),
         }

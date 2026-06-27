@@ -8,6 +8,8 @@ import time
 from typing import Optional
 import httpx
 
+from ..redact import redact
+
 LOKI_URL = os.getenv("LOKI_URL", "")
 
 
@@ -54,7 +56,8 @@ async def query_loki_logs(
             lines.append({"timestamp": ts, "line": line})
 
     lines = sorted(lines, key=lambda x: x["timestamp"])
-    raw = [l["line"] for l in lines]
+    # Redact secrets BEFORE the logs leave the cluster to the third-party LLM.
+    raw = [redact(l["line"]) for l in lines]
 
     error_keywords = ("error", "exception", "fatal", "critical", "oom", "killed",
                       "failed", "panic", "traceback", "refused", "timeout")
