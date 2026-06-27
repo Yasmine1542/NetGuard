@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   build:
-    name: ${{ matrix.emoji }} ${{ matrix.label }}
+    name: ${{ matrix.label }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -30,39 +30,34 @@ jobs:
         include:
           - service: inference
             label: "inference · model serving"
-            emoji: "🧠"
             context: "."
             file: services/inference/Dockerfile
             lang: python
           - service: collector
             label: "collector · traffic generator"
-            emoji: "📡"
             context: services/collector
             file: services/collector/Dockerfile
             lang: python
           - service: backend-api
             label: "backend-api · dashboard gateway"
-            emoji: "🌐"
             context: services/backend-api
             file: services/backend-api/Dockerfile
             lang: python
           - service: aiops-engine
             label: "aiops-engine · incident diagnosis"
-            emoji: "🤖"
             context: services/aiops-engine
             file: services/aiops-engine/Dockerfile
             lang: python
           - service: frontend
             label: "frontend · React dashboard"
-            emoji: "📊"
             context: frontend
             file: frontend/Dockerfile
             lang: docker
     steps:
-      - name: ⬇️ Checkout
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 🐍 Set up Python 3.12
+      - name: Set up Python 3.12
         if: matrix.lang == 'python'
         uses: actions/setup-python@v5
         with:
@@ -70,7 +65,7 @@ jobs:
           cache: pip
           cache-dependency-path: services/${{ matrix.service }}/requirements-dev.txt
 
-      - name: 🧹 Lint (ruff) & 🧪 unit tests (pytest)
+      - name: Lint (ruff) and unit tests (pytest)
         if: matrix.lang == 'python'
         working-directory: services/${{ matrix.service }}
         run: |
@@ -78,27 +73,27 @@ jobs:
           ruff check .
           pytest -q
 
-      - name: 🐳 Lint Dockerfile (hadolint)
+      - name: Lint Dockerfile (hadolint)
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: ${{ matrix.file }}
           failure-threshold: error
 
-      - name: 🏷️ Resolve image name
+      - name: Resolve image name
         id: meta
         run: echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/netguard-${{ matrix.service }}" >> "$GITHUB_OUTPUT"
 
-      - name: 🔑 Log in to GHCR
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🧰 Set up Buildx
+      - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: 🏗️ Build image
+      - name: Build image
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
@@ -106,7 +101,7 @@ jobs:
           load: true
           tags: ${{ steps.meta.outputs.image }}:${{ github.sha }}
 
-      - name: 🛡️ Trivy vulnerability scan (HIGH/CRITICAL)
+      - name: Trivy vulnerability scan (HIGH/CRITICAL)
         # Report mode (exit-code 0): the scan runs and prints findings, but does
         # not block the build — keeps runs green for the demo while the security
         # scan stays visible. Flip to --exit-code 1 (with a documented
@@ -116,7 +111,7 @@ jobs:
           trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 \
             ${{ steps.meta.outputs.image }}:${{ github.sha }}
 
-      - name: 📦 Push to GHCR (main only)
+      - name: Push to GHCR (main only)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           docker tag ${{ steps.meta.outputs.image }}:${{ github.sha }} ${{ steps.meta.outputs.image }}:latest
