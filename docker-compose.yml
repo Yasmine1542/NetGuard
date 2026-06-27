@@ -61,7 +61,7 @@ services:
     build: ./services/aiops-engine
     environment:
       GROQ_API_KEY: ${GROQ_API_KEY:-}
-      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
       AIOPS_DB_URL: postgresql://aiops:${POSTGRES_PASSWORD:-aiops}@postgres:5432/aiops
       PROMETHEUS_URL: ${PROMETHEUS_URL:-}
       LOKI_URL: ${LOKI_URL:-}

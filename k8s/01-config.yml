@@ -25,7 +25,7 @@ data:
   # Read directly by the lifted aiops tools (unprefixed).
   PROMETHEUS_URL: "http://prometheus-operated.monitoring.svc.cluster.local:9090"
   LOKI_URL: "http://loki-gateway.monitoring.svc.cluster.local:80"
-  GROQ_MODEL: "llama-3.3-70b-versatile"
+  GROQ_MODEL: "openai/gpt-oss-120b"
 
   POSTGRES_USER: "aiops"
   POSTGRES_DB: "aiops"

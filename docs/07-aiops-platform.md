@@ -98,7 +98,7 @@ provider.
 ```python
 from langchain_groq import ChatGroq
 
-DEFAULT_MODEL = "llama-3.3-70b-versatile"
+DEFAULT_MODEL = "openai/gpt-oss-120b"   # pinned; see note below
 
 def get_llm(temperature: float = 0.0, json_mode: bool = True) -> ChatGroq:
     kwargs = {"model": os.getenv("GROQ_MODEL", DEFAULT_MODEL), "temperature": temperature}
@@ -107,13 +107,21 @@ def get_llm(temperature: float = 0.0, json_mode: bool = True) -> ChatGroq:
     return ChatGroq(**kwargs)
 ```
 
-**Why Groq + Llama 3.3 70B.** The cluster has no GPU, so a local model (Ollama)
-was far too slow for an interactive dashboard. Groq serves Llama 3.3 70B with
-very low latency on a free tier, which makes a 4-call pipeline finish in ~8 s.
-`temperature=0` for the classification/reasoning agents (determinism);
-`temperature=0.1` for the postmortem (slightly more fluent prose). The factory
-indirection means an air-gapped deployment swaps `ChatGroq` for `ChatOllama`
-here and **no agent changes**.
+**Why Groq + `openai/gpt-oss-120b`.** The cluster has no GPU, so a local model
+(Ollama) is too slow for an interactive dashboard — hence **hosted inference**.
+Groq serves a current production model with very low latency, so a 4-call
+pipeline finishes in ~8 s. `temperature=0` for the classification/reasoning
+agents (determinism); `temperature=0.1` for the postmortem prose. The factory
+keeps the provider swappable (e.g. a self-hosted `ChatOllama`), but that local
+path trades away the interactive latency, so it is a **documented option, not
+the evaluated configuration** — we do not claim air-gapped operation.
+
+**Cloud-inference trade-off (owned, not hidden).** Evidence leaves the cluster
+to a third-party LLM, so (a) the collector layer **redacts secrets** before it
+does (§4), and (b) the model id is **pinned with a date**, because hosted models
+churn — the previous default `llama-3.3-70b-versatile` deprecates 2026-08-16, so
+it was repinned to `openai/gpt-oss-120b`. Reproducibility is bounded by the
+hosted model's lifetime; the pinned string + date are recorded for that reason.
 
 ---
 
