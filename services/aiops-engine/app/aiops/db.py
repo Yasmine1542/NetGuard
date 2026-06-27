@@ -1,10 +1,10 @@
 """
-PostgreSQL persistence for incidents.
+PostgreSQL persistence for incidents (JSONB columns via an asyncpg codec).
 
-Uses the same PostgreSQL instance as MLflow (mlflow-postgresql in the mlops namespace).
-Incidents are stored in a separate 'aiops' database.
-
-For local dev (no DB), falls back to an in-memory store.
+In the cluster this targets the netguard `postgres` StatefulSet, selected by
+AIOPS_DB_URL. JSON-bearing columns are JSONB so they can be queried and
+aggregated (e.g. for the evaluation and the incident-memory plan). For local dev
+(no DB), it falls back to an in-memory store.
 """
 
 import json
@@ -14,20 +14,40 @@ from typing import Optional
 
 DB_URL = os.getenv(
     "AIOPS_DB_URL",
-    "",  # e.g. postgresql://aiops:aiops@mlflow-postgresql.mlops.svc.cluster.local:5432/aiops
+    "",  # e.g. postgresql://aiops:<pw>@postgres.netguard.svc.cluster.local:5432/aiops
 )
 
 # In-memory fallback for local dev
 _memory_store: dict[str, dict] = {}
 
 
+def _as_dt(value):
+    """Coerce an ISO timestamp string to a datetime for TIMESTAMPTZ columns
+    (asyncpg rejects plain strings). Accepts a trailing 'Z'."""
+    if value is None or isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    return None
+
+
 async def _get_conn():
-    """Return an asyncpg connection or None if DB not configured."""
+    """Return an asyncpg connection (with a JSONB codec) or None if not configured."""
     if not DB_URL:
         return None
     try:
         import asyncpg
-        return await asyncpg.connect(DB_URL)
+        conn = await asyncpg.connect(DB_URL)
+        # Encode/decode JSONB as Python objects, so we store dicts/lists directly
+        # and reads come back parsed — enabling WHERE/aggregation over the data
+        # (e.g. WHERE (rca_output->>'confidence')::float > 0.8) and the memory plan.
+        await conn.set_type_codec(
+            "jsonb", encoder=json.dumps, decoder=json.loads, schema="pg_catalog"
+        )
+        return conn
     except Exception:
         return None
 
@@ -63,20 +83,20 @@ async def save_incident(incident: dict) -> None:
                 duration_s     = EXCLUDED.duration_s
         """,
             incident["id"],
-            incident.get("triggered_at"),
+            _as_dt(incident.get("triggered_at")),
             incident.get("trigger_source", "manual"),
-            json.dumps(incident.get("trigger_raw", {})),
+            incident.get("trigger_raw", {}),
             incident.get("status", "OPEN"),
             incident.get("severity"),
             incident.get("failure_mode"),
             incident.get("namespace"),
-            json.dumps(incident.get("affected_pods", [])),
+            incident.get("affected_pods", []),
             incident.get("root_cause"),
             incident.get("confidence"),
-            json.dumps(incident.get("triage")),
-            json.dumps(incident.get("evidence")),
-            json.dumps(incident.get("rca")),
-            json.dumps(incident.get("postmortem")),
+            incident.get("triage"),
+            incident.get("evidence"),
+            incident.get("rca"),
+            incident.get("postmortem"),
             incident.get("duration_s"),
         )
     finally:
@@ -104,7 +124,7 @@ async def update_incident_step(incident_id: str, step: str, data: dict) -> None:
     try:
         await conn.execute(
             f"UPDATE incidents SET {col} = $1 WHERE id = $2",
-            json.dumps(data), incident_id,
+            data, incident_id,
         )
     finally:
         await conn.close()
@@ -168,13 +188,8 @@ async def get_incident(incident_id: str) -> Optional[dict]:
         )
         if not row:
             return None
-        result = dict(row)
-        # Parse JSONB columns
-        for col in ("trigger_raw", "affected_pods", "triage_output",
-                    "evidence_output", "rca_output", "postmortem"):
-            if isinstance(result.get(col), str):
-                result[col] = json.loads(result[col])
-        return result
+        # JSONB columns are already decoded to dicts/lists by the codec.
+        return dict(row)
     finally:
         await conn.close()
 
