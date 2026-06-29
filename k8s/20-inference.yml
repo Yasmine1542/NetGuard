@@ -40,7 +40,7 @@ spec:
           envFrom:
             - configMapRef: { name: netguard-config }
           ports:
-            - { containerPort: 8000, name: http }
+            - { containerPort: 8000, name: http, protocol: TCP }
           resources:
             requests: { cpu: 200m, memory: 256Mi }
             limits: { cpu: "1", memory: 512Mi }

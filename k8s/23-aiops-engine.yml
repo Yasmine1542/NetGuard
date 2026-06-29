@@ -24,7 +24,7 @@ spec:
             - configMapRef: { name: netguard-config }
             - secretRef: { name: netguard-secrets }   # GROQ_API_KEY, AIOPS_DB_URL
           ports:
-            - { containerPort: 8000, name: http }
+            - { containerPort: 8000, name: http, protocol: TCP }
           resources:
             requests: { cpu: 100m, memory: 192Mi }
             limits: { cpu: 500m, memory: 384Mi }
