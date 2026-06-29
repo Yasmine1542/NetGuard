@@ -19,6 +19,7 @@ type AgentStep = {
 };
 
 type DiagState = "idle" | "running" | "complete" | "error";
+type DiagOutcome = "ok" | "noise" | "inconclusive" | null;
 
 // ── Agent metadata ───────────────────────────────────────────────────────────
 
@@ -234,33 +235,41 @@ export default function LiveDiagnosisPage({
   const [incidentId, setIncidentId] = useState<string | null>(null);
   const [steps,      setSteps]      = useState<Record<string, AgentStep>>({});
   const [error,      setError]      = useState<string | null>(null);
+  const [outcome,    setOutcome]    = useState<DiagOutcome>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
   const initSteps = (): Record<string, AgentStep> =>
     Object.fromEntries(AGENT_ORDER.map(a => [a, { agent: a as AgentStep["agent"], status: "waiting" }]));
 
-  const handleStart = async () => {
+  const handleStart = () => {
     setError(null);
     setState("running");
     setSteps(initSteps());
     setIncidentId(null);
+    setOutcome(null);
 
-    try {
-      const r = await fetch("/api/aiops/analyze", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ namespace, pod_name: podName, trigger_source: "manual" }),
-      });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    } catch (e) {
-      setError(String(e));
-      setState("error");
-      return;
-    }
-
+    // Open the stream FIRST and trigger the run only once it is connected, so no
+    // early pipeline events are missed. Stay on the __all__ channel for the whole
+    // run (no socket switching) — switching mid-stream dropped the fast
+    // triage/noise events and left the UI stuck on the first agent.
     const wsScheme = window.location.protocol === "https:" ? "wss:" : "ws:";
     const ws = new WebSocket(`${wsScheme}//${window.location.host}/ws/aiops/__all__`);
     wsRef.current = ws;
+
+    ws.onopen = async () => {
+      try {
+        const r = await fetch("/api/aiops/analyze", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ namespace, pod_name: podName, trigger_source: "manual" }),
+        });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      } catch (e) {
+        setError(String(e));
+        setState("error");
+        ws.close();
+      }
+    };
 
     ws.onmessage = (ev) => {
       try {
@@ -270,18 +279,13 @@ export default function LiveDiagnosisPage({
 
         if (step === "pipeline" && status === "started") {
           const id = data?.incident_id;
-          if (id) {
-            setIncidentId(id);
-            onIncidentCreated?.(id);
-            ws.close();
-            const ws2 = new WebSocket(`${wsScheme}//${window.location.host}/ws/aiops/${id}`);
-            wsRef.current = ws2;
-            ws2.onmessage = ws.onmessage;
-          }
+          if (id) { setIncidentId(id); onIncidentCreated?.(id); }
           return;
         }
-        if (step === "pipeline" && (status === "complete" || status === "noise")) {
-          setState("complete");
+        if (step === "pipeline") {
+          if (status === "complete")          { setOutcome("ok");           setState("complete"); }
+          else if (status === "noise")        { setOutcome("noise");        setState("complete"); }
+          else if (status === "inconclusive") { setOutcome("inconclusive"); setState("complete"); }
           return;
         }
         if (!AGENT_ORDER.includes(step)) return;
@@ -308,6 +312,7 @@ export default function LiveDiagnosisPage({
     setSteps({});
     setIncidentId(null);
     setError(null);
+    setOutcome(null);
   };
 
   useEffect(() => () => { wsRef.current?.close(); }, []);
@@ -373,7 +378,11 @@ export default function LiveDiagnosisPage({
                 ? <CheckCircle2 size={15} className="text-ok" />
                 : <Loader2 size={15} className="text-acct animate-spin" />}
               <span className="text-[12px] font-semibold text-pri">
-                {state === "complete" ? "Diagnosis complete" : `Running — ${AGENT_META[activeStep ?? ""]?.label ?? "starting…"}`}
+                {state === "complete"
+                  ? (outcome === "noise" ? "No incident — classified as noise"
+                     : outcome === "inconclusive" ? "Inconclusive — needs review"
+                     : "Diagnosis complete")
+                  : `Running — ${AGENT_META[activeStep ?? ""]?.label ?? "starting…"}`}
               </span>
               <span className="text-[10px] text-mut font-mono">({doneCount}/{AGENT_ORDER.length})</span>
             </div>
@@ -399,8 +408,8 @@ export default function LiveDiagnosisPage({
         </div>
       )}
 
-      {/* completion banner */}
-      {state === "complete" && allDone && (
+      {/* completion banner — diagnosed */}
+      {state === "complete" && outcome === "ok" && allDone && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
           className="card p-4 border-ok/50 bg-emerald-50 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
@@ -408,6 +417,42 @@ export default function LiveDiagnosisPage({
             <div>
               <div className="text-[12px] font-semibold text-ok">Incident diagnosed & recorded</div>
               <div className="text-[11px] text-sec mt-0.5">Open the Incidents page for the full report and postmortem.</div>
+            </div>
+          </div>
+          <button onClick={handleReset}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium border border-bd text-sec bg-surface hover:text-pri rounded-md flex-shrink-0">
+            <RotateCcw size={12} /> Run another
+          </button>
+        </motion.div>
+      )}
+
+      {/* completion banner — noise (nothing failing in target) */}
+      {state === "complete" && outcome === "noise" && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+          className="card p-4 border-bd bg-raised flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <ShieldAlert size={20} className="text-sec flex-shrink-0" />
+            <div>
+              <div className="text-[12px] font-semibold text-pri">No active incident — classified as noise</div>
+              <div className="text-[11px] text-sec mt-0.5">Triage found nothing failing in the target. Recorded as NOISE; the full pipeline was skipped. Try a namespace that has unhealthy pods.</div>
+            </div>
+          </div>
+          <button onClick={handleReset}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium border border-bd text-sec bg-surface hover:text-pri rounded-md flex-shrink-0">
+            <RotateCcw size={12} /> Run another
+          </button>
+        </motion.div>
+      )}
+
+      {/* completion banner — inconclusive (collection failed) */}
+      {state === "complete" && outcome === "inconclusive" && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+          className="card p-4 border-warn bg-amber-50 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <XCircle size={20} className="text-warn flex-shrink-0" />
+            <div>
+              <div className="text-[12px] font-semibold text-warn">Inconclusive — signal collection failed</div>
+              <div className="text-[11px] text-sec mt-0.5">Triage couldn't read cluster signals (API/collection error). Recorded as INCONCLUSIVE for review rather than dropped as all-clear.</div>
             </div>
           </div>
           <button onClick={handleReset}
