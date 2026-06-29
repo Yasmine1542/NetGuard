@@ -10,7 +10,8 @@ import LogsPage from "./pages/LogsPage";
 import IncidentsPage from "./pages/IncidentsPage";
 import LiveDiagnosisPage from "./pages/LiveDiagnosisPage";
 
-const WS_URL = `ws://${window.location.host}/ws`;
+const WS_SCHEME = window.location.protocol === "https:" ? "wss:" : "ws:";
+const WS_URL = `${WS_SCHEME}//${window.location.host}/ws`;
 
 export default function App() {
   const [page, setPage]                   = useState<Page>("overview");

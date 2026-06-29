@@ -258,7 +258,8 @@ export default function LiveDiagnosisPage({
       return;
     }
 
-    const ws = new WebSocket(`ws://${window.location.host}/ws/aiops/__all__`);
+    const wsScheme = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const ws = new WebSocket(`${wsScheme}//${window.location.host}/ws/aiops/__all__`);
     wsRef.current = ws;
 
     ws.onmessage = (ev) => {
@@ -273,7 +274,7 @@ export default function LiveDiagnosisPage({
             setIncidentId(id);
             onIncidentCreated?.(id);
             ws.close();
-            const ws2 = new WebSocket(`ws://${window.location.host}/ws/aiops/${id}`);
+            const ws2 = new WebSocket(`${wsScheme}//${window.location.host}/ws/aiops/${id}`);
             wsRef.current = ws2;
             ws2.onmessage = ws.onmessage;
           }

@@ -114,7 +114,7 @@ export default function Sidebar({ active, onNavigate, wsStatus, openIncidents = 
             {wsOk ? "Stream live" : wsStatus === "connecting" ? "Connecting…" : "Disconnected"}
           </span>
         </div>
-        <div className="text-[10px] text-mut mt-0.5">{`ws://${window.location.host}/ws`}</div>
+        <div className="text-[10px] text-mut mt-0.5">{`${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws`}</div>
       </div>
     </aside>
   );

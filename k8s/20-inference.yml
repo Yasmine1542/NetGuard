@@ -1,15 +1,33 @@
 # Inference — LightGBM model serving. The model artifacts are baked into the
 # image, so there is no runtime volume or external dependency.
-apiVersion: apps/v1
-kind: Deployment
+#
+# Deployed as an Argo Rollouts canary (not a plain Deployment): a new model = a
+# new image tag, which shifts 50% of replicas to the candidate, pauses, then runs
+# the inference-health AnalysisTemplate (25-inference-analysis.yml). It promotes
+# to 100% only if the gate passes; otherwise it auto-rolls-back to the stable
+# ReplicaSet — "failure observed as a signal -> reconcile to a known-good state".
+#
+# Requires the argo-rollouts controller (ansible playbooks/30-argo-rollouts.yml).
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   name: inference
   namespace: netguard
   labels: { app: inference, app.kubernetes.io/part-of: netguard }
 spec:
-  replicas: 1
+  replicas: 2
+  revisionHistoryLimit: 3
   selector:
     matchLabels: { app: inference }
+  strategy:
+    canary:
+      steps:
+        - setWeight: 50
+        - pause: { duration: 30 }
+        - analysis:
+            templates:
+              - templateName: inference-health
+        - setWeight: 100
   template:
     metadata:
       labels: { app: inference }

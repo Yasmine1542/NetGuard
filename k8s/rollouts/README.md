@@ -1,34 +1,27 @@
-# Inference canary (Argo Rollouts)
+# Inference canary (Argo Rollouts) — now part of GitOps
 
-Progressive delivery for the `inference` service, kept separate from the base
-deployment so the platform runs fine without argo-rollouts and the canary is a
-deliberate demo. The canary shifts traffic in steps and is gated by a Prometheus
-`AnalysisTemplate`; if the gate fails it auto-rolls-back to the stable version.
+The canary is no longer a manual side-demo. The Rollout, its AnalysisTemplate and
+the ServiceMonitor moved into the top-level `k8s/` tree and are deployed by the
+`netguard` ArgoCD Application (see `argocd/apps/netguard.yml`):
 
-## One-time prerequisites
-```bash
-# argo-rollouts controller must be running (we scaled it to 0 during cleanup):
-kubectl -n argo-rollouts scale deploy argo-rollouts --replicas=1
+- `k8s/20-inference.yml` — the inference **Rollout** (canary strategy) + Service
+- `k8s/25-inference-analysis.yml` — the `inference-health` AnalysisTemplate (gate)
+- `k8s/26-inference-servicemonitor.yml` — scrape config feeding the gate
 
-# scrape config + gate
-kubectl apply -f inference-servicemonitor.yml
-kubectl apply -f inference-analysis.yml
-```
-
-## Switch inference to the Rollout (supersedes the Deployment)
-```bash
-kubectl -n netguard scale deploy inference --replicas=0   # or: kubectl -n netguard delete deploy inference
-kubectl apply -f inference-rollout.yml
-kubectl argo rollouts -n netguard get rollout inference --watch
-```
+Prerequisite: the argo-rollouts controller (ansible `playbooks/30-argo-rollouts.yml`).
 
 ## Demo a model update + canary
 ```bash
-# point the rollout at a new image tag (a retrained model)
+# A new model = a new image tag. Trigger the canary by bumping the tag:
 kubectl argo rollouts -n netguard set image inference \
-  inference=<acr>/netguard-inference:<new-tag>
+  inference=ghcr.io/yasmine1542/netguard-inference:<new-tag>
 kubectl argo rollouts -n netguard get rollout inference --watch
 ```
 - Healthy new version → 50% → analysis passes → promoted to 100%.
 - Bad version (model fails to load / latency spikes) → analysis fails → automatic
   rollback to the previous stable ReplicaSet. Capture this for the report.
+
+Note: with the image pinned to a moving `:latest` tag, a registry push alone does
+NOT retrigger the canary (the Rollout pod template is unchanged). Trigger it with
+`set image` to an immutable tag, or wire Argo CD Image Updater to bump the tag in
+git automatically (tracked under the Azure/CD task).

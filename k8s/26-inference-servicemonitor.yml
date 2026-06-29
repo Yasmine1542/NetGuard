@@ -1,0 +1,22 @@
+# Tells kube-prometheus-stack to scrape the inference /metrics endpoint. These
+# metrics (netguard_model_loaded, netguard_inference_latency_seconds) feed the
+# canary AnalysisTemplate (25-inference-analysis.yml).
+# The `release` label is what the Prometheus Operator's serviceMonitorSelector
+# matches by default.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: inference
+  namespace: netguard
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames: ["netguard"]
+  selector:
+    matchLabels:
+      app: inference
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
