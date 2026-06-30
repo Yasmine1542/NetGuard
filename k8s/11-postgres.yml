@@ -38,6 +38,11 @@ metadata:
 spec:
   serviceName: postgres
   replicas: 1
+  # Declared explicitly to match what the API server defaults onto the live
+  # object — otherwise Argo CD sees perpetual drift and the app flaps OutOfSync.
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
   selector:
     matchLabels: { app: postgres }
   template:
@@ -75,6 +80,7 @@ spec:
       spec:
         accessModes: ["ReadWriteOnce"]
         storageClassName: longhorn
+        volumeMode: Filesystem
         resources:
           requests: { storage: 1Gi }
 ---
