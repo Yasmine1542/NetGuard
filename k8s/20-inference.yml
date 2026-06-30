@@ -35,8 +35,11 @@ spec:
       imagePullSecrets: [{ name: registry-secret }]
       containers:
         - name: inference
-          image: ghcr.io/yasmine1542/netguard-inference:latest
-          imagePullPolicy: Always
+          # Pinned to an immutable SHA, not :latest. A canary is driven by changing
+          # this tag in git (ArgoCD syncs -> Rollout runs the inference-health gate);
+          # :latest can't trigger a sync and fights selfHeal, so it never canaried.
+          image: ghcr.io/yasmine1542/netguard-inference:cacd2d7142707aecdf6bba2d60abbe9808bef336
+          imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef: { name: netguard-config }
           ports:
