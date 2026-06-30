@@ -59,6 +59,7 @@ kind: Service
 metadata:
   name: inference
   namespace: netguard
+  labels: { app: inference }   # matched by the inference ServiceMonitor (26-*); without it Prometheus never scrapes /metrics and the canary gate has no data
 spec:
   selector: { app: inference }
   ports:
