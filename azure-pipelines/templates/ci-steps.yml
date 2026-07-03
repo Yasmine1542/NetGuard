@@ -1,10 +1,12 @@
-# Reusable CI steps for one NetGuard service: build -> Trivy scan -> push.
+# Reusable CI steps for one NetGuard service:
+#   lint + unit tests  ->  build  ->  Trivy scan  ->  push.
 # The scan runs on the freshly built LOCAL image BEFORE push, so a HIGH/CRITICAL
 # CVE fails the run and never reaches the registry.
 #
-# Runs on the self-hosted agent (pool netguard-xpertos), which has Docker and
-# Trivy pre-installed. The image is built inside its Dockerfile, so no host-side
-# Python/Node toolchain is needed here.
+# Runs on the self-hosted agent (pool netguard-xpertos), which has Docker, Trivy,
+# system python3, and Node.js installed. We use the system toolchains directly
+# (in a throwaway venv for Python) instead of the UsePythonVersion/NodeTool tasks,
+# which require the version to be in the agent tool cache and fail on self-hosted.
 #
 # Registry-agnostic via the "netguard-registry" variable group:
 #   registryConnection   Docker Registry service connection name (acr-connection)
@@ -17,11 +19,34 @@ parameters:
     type: string
   - name: dockerfile    # path to the Dockerfile
     type: string
-  - name: kind          # python | frontend  (kept for compatibility; unused here)
+  - name: kind          # python | frontend
     type: string
     default: python
 
 steps:
+  # ── Lint + unit tests: Python services (system python3, throwaway venv) ──
+  - ${{ if eq(parameters.kind, 'python') }}:
+      - script: |
+          set -euo pipefail
+          python3 -m venv "$(Agent.TempDirectory)/venv"
+          . "$(Agent.TempDirectory)/venv/bin/activate"
+          python -m pip install --upgrade pip -q
+          pip install -q -r services/${{ parameters.name }}/requirements-dev.txt
+          cd services/${{ parameters.name }}
+          ruff check .
+          pytest -q
+        displayName: Lint (ruff) + unit tests (pytest)
+
+  # ── Lint + build: frontend (system Node.js) ──
+  - ${{ if eq(parameters.kind, 'frontend') }}:
+      - script: |
+          set -euo pipefail
+          cd frontend
+          npm ci
+          npm run lint --if-present
+          npm run build
+        displayName: Frontend lint + build
+
   - task: Docker@2
     displayName: Build image
     inputs:
