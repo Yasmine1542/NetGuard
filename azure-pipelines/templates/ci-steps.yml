@@ -60,7 +60,8 @@ steps:
         latest
 
   - script: |
-      trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 \
+      trivy image --severity HIGH,CRITICAL --ignore-unfixed \
+        --ignorefile "$(Build.SourcesDirectory)/.trivyignore" --exit-code 1 \
         $(registryHost)/$(imageRepoPrefix)${{ parameters.name }}:$(Build.BuildId)
     displayName: Trivy image scan (fail on HIGH/CRITICAL)
 
