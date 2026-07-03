@@ -8,7 +8,7 @@ trigger:
       - services/inference/**
       - model/artifacts/**
 pool:
-  vmImage: ubuntu-latest
+  name: netguard-xpertos
 variables:
   - group: netguard-registry
 steps:

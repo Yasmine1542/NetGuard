@@ -5,7 +5,7 @@ trigger:
     include:
       - frontend/**
 pool:
-  vmImage: ubuntu-latest
+  name: netguard-xpertos
 variables:
   - group: netguard-registry
 steps:

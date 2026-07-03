@@ -5,7 +5,7 @@ trigger:
     include:
       - services/collector/**
 pool:
-  vmImage: ubuntu-latest
+  name: netguard-xpertos
 variables:
   - group: netguard-registry
 steps:
