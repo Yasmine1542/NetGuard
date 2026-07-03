@@ -10,6 +10,10 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: netguard-aiops
+# Least-privilege by construction: read-only (get/list/watch) on a fixed set of
+# diagnostic resources. No write/patch/delete verbs, no access to Secrets or
+# ConfigMaps. Cluster scope is required because incidents can occur in any
+# namespace; this is the single, justified cluster-scoped exception on the platform.
 rules:
   - apiGroups: [""]
     resources: ["pods", "pods/log", "events", "nodes"]
@@ -30,3 +34,14 @@ roleRef:
   kind: ClusterRole
   name: netguard-aiops
   apiGroup: rbac.authorization.k8s.io
+---
+# Least-privilege identity for the application workloads (frontend, backend-api,
+# inference, collector). It is bound to NO Role or ClusterRole, so these pods hold
+# zero Kubernetes API access: every namespaced and cluster-wide action is denied.
+# The services talk to each other over HTTP, never the API server, so they need
+# nothing more. Only aiops-engine (above) is granted access, and only read.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: netguard-app
+  namespace: netguard

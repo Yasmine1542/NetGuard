@@ -1,0 +1,140 @@
+# NetworkPolicies for the netguard namespace: default-deny ingress, then one
+# explicit allow per real traffic edge. Egress is intentionally left open so DNS,
+# the Groq API, the external dataset, and Prometheus/Loki reads keep working;
+# ingress is the attack surface these policies close.
+#
+# Cross-namespace rules rely on the automatic `kubernetes.io/metadata.name` label
+# that Kubernetes stamps on every namespace. Verify the ingress controller's
+# namespace name matches `ingress-nginx` in your cluster before applying.
+---
+# 1) Default-deny: nothing may reach any pod in netguard unless a later policy allows it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: netguard
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+---
+# 2) Ingress controller -> the three public-facing services (UI, API/WS, AIOps routes).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-controller
+  namespace: netguard
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: app, operator: In, values: [frontend, backend-api, aiops-engine] }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: ingress-nginx }
+      ports:
+        - { protocol: TCP, port: 80 }
+        - { protocol: TCP, port: 8000 }
+---
+# 3) Monitoring namespace -> HTTP :8000 targets. Covers Prometheus /metrics scraping
+#    (inference feeds the canary gate) AND the Alertmanager webhook to aiops-engine.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring
+  namespace: netguard
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: app, operator: In, values: [inference, backend-api, aiops-engine, collector] }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: monitoring }
+      ports:
+        - { protocol: TCP, port: 8000 }
+---
+# 4) inference :8000  <-  collector (scoring) and backend-api (model-info)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-inference
+  namespace: netguard
+spec:
+  podSelector:
+    matchLabels: { app: inference }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: collector } }
+        - podSelector: { matchLabels: { app: backend-api } }
+      ports:
+        - { protocol: TCP, port: 8000 }
+---
+# 5) redis :6379  <-  collector (publish) and backend-api (subscribe)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-redis
+  namespace: netguard
+spec:
+  podSelector:
+    matchLabels: { app: redis }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: collector } }
+        - podSelector: { matchLabels: { app: backend-api } }
+      ports:
+        - { protocol: TCP, port: 6379 }
+---
+# 6) aiops-engine :8000  <-  backend-api (trigger diagnosis)
+#    (ingress controller + monitoring already covered in policies 2 and 3)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-aiops-engine
+  namespace: netguard
+spec:
+  podSelector:
+    matchLabels: { app: aiops-engine }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: backend-api } }
+      ports:
+        - { protocol: TCP, port: 8000 }
+---
+# 7) postgres :5432  <-  aiops-engine (persist incidents)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-postgres
+  namespace: netguard
+spec:
+  podSelector:
+    matchLabels: { app: postgres }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: aiops-engine } }
+      ports:
+        - { protocol: TCP, port: 5432 }
+---
+# 8) backend-api :8000  <-  frontend (in case the SPA proxies /api and /ws)
+#    (ingress controller + monitoring already covered in policies 2 and 3)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-api
+  namespace: netguard
+spec:
+  podSelector:
+    matchLabels: { app: backend-api }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: frontend } }
+      ports:
+        - { protocol: TCP, port: 8000 }

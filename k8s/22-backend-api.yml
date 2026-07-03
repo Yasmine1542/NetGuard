@@ -14,6 +14,7 @@ spec:
     metadata:
       labels: { app: backend-api }
     spec:
+      serviceAccountName: netguard-app
       imagePullSecrets: [{ name: registry-secret }]
       containers:
         - name: backend-api

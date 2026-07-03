@@ -14,6 +14,7 @@ spec:
     metadata:
       labels: { app: collector }
     spec:
+      serviceAccountName: netguard-app
       imagePullSecrets: [{ name: registry-secret }]
       containers:
         - name: collector
