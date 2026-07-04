@@ -18,7 +18,7 @@ spec:
       imagePullSecrets: [{ name: registry-secret }]
       containers:
         - name: backend-api
-          image: ghcr.io/yasmine1542/netguard-backend-api:latest
+          image: netguardacr.azurecr.io/netguard-backend-api:latest
           imagePullPolicy: Always
           envFrom:
             - configMapRef: { name: netguard-config }

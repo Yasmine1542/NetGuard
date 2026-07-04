@@ -18,7 +18,7 @@ spec:
       imagePullSecrets: [{ name: registry-secret }]
       containers:
         - name: frontend
-          image: ghcr.io/yasmine1542/netguard-frontend:latest
+          image: netguardacr.azurecr.io/netguard-frontend:latest
           imagePullPolicy: Always
           ports:
             - { containerPort: 80, name: http, protocol: TCP }

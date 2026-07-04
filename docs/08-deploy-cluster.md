@@ -1,6 +1,6 @@
 # Deploying NetGuard to the cluster (run on the server)
 
-Prereqs the manifests already encode: images pinned to `ghcr.io/yasmine1542/*`,
+Prereqs the manifests already encode: images pinned to `netguardacr.azurecr.io/*`,
 the ArgoCD Application points at this repo. Run everything below ON THE SERVER
 (where `kubectl` targets the production cluster).
 
@@ -9,7 +9,7 @@ the ArgoCD Application points at this repo. Run everything below ON THE SERVER
 cd /home/master/netguard && git push        # pushes Batch-1 + the registry pins
 ```
 Wait for the GitHub Actions run to go green → 5 images at
-`ghcr.io/yasmine1542/netguard-{inference,collector,backend-api,aiops-engine,frontend}:latest`.
+`netguardacr.azurecr.io/netguard-{inference,collector,backend-api,aiops-engine,frontend}:latest`.
 
 ## 1. Pull the repo on the server
 ```bash
@@ -26,7 +26,7 @@ kubectl apply -f k8s/00-namespace.yml
 Create a pull secret with a GitHub PAT that has `read:packages`:
 ```bash
 kubectl -n netguard create secret docker-registry registry-secret \
-  --docker-server=ghcr.io \
+  --docker-server=netguardacr.azurecr.io \
   --docker-username=Yasmine1542 \
   --docker-password='<PAT_with_read:packages>'
 ```

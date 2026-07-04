@@ -14,7 +14,7 @@ Prerequisite: the argo-rollouts controller (ansible `playbooks/30-argo-rollouts.
 ```bash
 # A new model = a new image tag. Trigger the canary by bumping the tag:
 kubectl argo rollouts -n netguard set image inference \
-  inference=ghcr.io/yasmine1542/netguard-inference:<new-tag>
+  inference=netguardacr.azurecr.io/netguard-inference:<new-tag>
 kubectl argo rollouts -n netguard get rollout inference --watch
 ```
 - Healthy new version → 50% → analysis passes → promoted to 100%.
