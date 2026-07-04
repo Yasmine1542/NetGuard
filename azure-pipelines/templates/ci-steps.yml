@@ -37,15 +37,9 @@ steps:
           pytest -q
         displayName: Lint (ruff) + unit tests (pytest)
 
-  # ── Lint + build: frontend (system Node.js) ──
-  - ${{ if eq(parameters.kind, 'frontend') }}:
-      - script: |
-          set -euo pipefail
-          cd frontend
-          npm ci
-          npm run lint --if-present
-          npm run build
-        displayName: Frontend lint + build
+  # Frontend has no host-side step: its Dockerfile builds with Node 20 (the agent
+  # runs Node 18) and vite-builds internally, so the Docker build below is the
+  # single source of truth for the frontend image.
 
   - task: Docker@2
     displayName: Build image
