@@ -89,8 +89,9 @@ spec:
       ports:
         - { protocol: TCP, port: 6379 }
 ---
-# 6) aiops-engine :8000  <-  backend-api (trigger diagnosis)
-#    (ingress controller + monitoring already covered in policies 2 and 3)
+# 6) aiops-engine :8000  <-  backend-api (trigger diagnosis) + frontend
+#    (frontend nginx proxies /api/aiops, /api/incidents and /ws/aiops here;
+#     ingress controller + monitoring already covered in policies 2 and 3)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -103,6 +104,7 @@ spec:
   ingress:
     - from:
         - podSelector: { matchLabels: { app: backend-api } }
+        - podSelector: { matchLabels: { app: frontend } }
       ports:
         - { protocol: TCP, port: 8000 }
 ---
@@ -132,6 +134,23 @@ metadata:
 spec:
   podSelector:
     matchLabels: { app: backend-api }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: frontend } }
+      ports:
+        - { protocol: TCP, port: 8000 }
+---
+# 9) collector :8000  <-  frontend (the SPA proxies /api/inject here)
+#    (ingress controller + monitoring already covered in policies 2 and 3)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-collector
+  namespace: netguard
+spec:
+  podSelector:
+    matchLabels: { app: collector }
   policyTypes: [Ingress]
   ingress:
     - from:
