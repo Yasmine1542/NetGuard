@@ -9,3 +9,17 @@
 CVE-2025-62727
 CVE-2026-48818
 CVE-2026-54283
+
+# langchain-core / langsmith HIGH advisories with no fix in the pinned 0.3.x line.
+# Remediated by upgrade instead of ignore: the CRITICAL RCE (CVE-2025-68664) and two
+# HIGH deserialization/injection flaws (CVE-2025-65106, CVE-2026-44843) are cleared by
+# langchain-core 0.3.85. The three below require langchain-core 1.x / langsmith 0.8.x
+# (a major migration) AND target features aiops-engine does not use:
+#   - CVE-2026-34070: legacy load_prompt() path traversal; the engine uses
+#     ChatPromptTemplate only, never load_prompt().
+#   - CVE-2026-45134 / GHSA-f4xh-w4cj-qxq8 (langsmith): LangSmith Hub prompt pulls and
+#     TracingMiddleware; the engine enables neither (no LANGCHAIN_TRACING).
+# Tracked for the langchain-core 1.x migration.
+CVE-2026-34070
+CVE-2026-45134
+GHSA-f4xh-w4cj-qxq8
