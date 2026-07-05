@@ -6,7 +6,7 @@ Usage:
     python run_evaluation.py
 
 Prerequisites:
-    - NetGuard backend reachable at http://netguard.cluster.lan
+    - NetGuard backend reachable at https://netguard.cluster.lan
     - aiops-engine deployed (Groq-backed); /api/aiops and /api/incidents reachable
     - kubectl configured and pointing at the cluster
 """

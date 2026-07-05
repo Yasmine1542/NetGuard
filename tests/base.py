@@ -8,7 +8,7 @@ import subprocess
 import time
 import httpx
 
-BACKEND_URL = "http://netguard.cluster.lan"
+BACKEND_URL = "https://netguard.cluster.lan"
 KUBECTL     = ["kubectl"]
 
 
@@ -32,7 +32,7 @@ def kubectl_delete(manifest: str) -> None:
 
 def trigger_diagnosis(namespace: str, description: str) -> str:
     """POST to /api/aiops/analyze and return the incident_id."""
-    with httpx.Client(timeout=10, verify=False) as c:
+    with httpx.Client(timeout=10, verify=False, follow_redirects=True) as c:
         r = c.post(f"{BACKEND_URL}/api/aiops/analyze", json={
             "namespace":   namespace,
             "description": description,
@@ -45,7 +45,7 @@ def trigger_diagnosis(namespace: str, description: str) -> str:
 def poll_incident(incident_id: str, timeout: int = 300) -> dict:
     """Poll GET /api/incidents/{id} until status != ANALYZING."""
     deadline = time.time() + timeout
-    with httpx.Client(timeout=10, verify=False) as c:
+    with httpx.Client(timeout=10, verify=False, follow_redirects=True) as c:
         while time.time() < deadline:
             r = c.get(f"{BACKEND_URL}/api/incidents/{incident_id}")
             if r.status_code == 200:
