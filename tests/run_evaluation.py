@@ -2,12 +2,12 @@
 AIOps Evaluation — runs all 4 scenarios sequentially and prints a results table.
 
 Usage:
-    cd demo-app/tests
+    cd tests
     python run_evaluation.py
 
 Prerequisites:
     - NetGuard backend reachable at http://netguard.cluster.lan
-    - AIOps pipeline deployed (37-ollama.yml, 38-aiops.yml done)
+    - aiops-engine deployed (Groq-backed); /api/aiops and /api/incidents reachable
     - kubectl configured and pointing at the cluster
 """
 
