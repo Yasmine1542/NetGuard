@@ -52,7 +52,7 @@ def run() -> ScenarioResult:
     t0 = time.time()
     result.incident_id = trigger_diagnosis(
         namespace=NAMESPACE,
-        description="Pod oom-stress OOMKilled — memory limit exceeded",
+        pod_name="oom-stress",
     )
 
     print(f"[S1] Polling incident {result.incident_id}...")
