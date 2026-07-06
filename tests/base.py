@@ -32,7 +32,10 @@ def kubectl_delete(manifest: str) -> None:
 
 def _incident_ids(client: httpx.Client, trigger_source: str) -> set:
     """IDs of incidents created via the given trigger source (newest 50)."""
-    resp = client.get(f"{BACKEND_URL}/api/incidents", params={"limit": 50})
+    try:
+        resp = client.get(f"{BACKEND_URL}/api/incidents", params={"limit": 50})
+    except httpx.RequestError:
+        return set()
     if resp.status_code != 200:
         return set()
     return {
@@ -50,7 +53,7 @@ def trigger_diagnosis(namespace: str, pod_name: str, trigger_source: str = "eval
     This is clock-skew-proof and ignores incidents the collector raises for the
     same failing pod.
     """
-    with httpx.Client(timeout=10, verify=False, follow_redirects=True) as c:
+    with httpx.Client(timeout=30, verify=False, follow_redirects=True) as c:
         before = _incident_ids(c, trigger_source)
         r = c.post(f"{BACKEND_URL}/api/aiops/analyze", json={
             "namespace":      namespace,
@@ -70,12 +73,21 @@ def trigger_diagnosis(namespace: str, pod_name: str, trigger_source: str = "eval
 def poll_incident(incident_id: str, timeout: int = 300) -> dict:
     """Poll GET /api/incidents/{id} until status != ANALYZING."""
     deadline = time.time() + timeout
-    with httpx.Client(timeout=10, verify=False, follow_redirects=True) as c:
+    with httpx.Client(timeout=30, verify=False, follow_redirects=True) as c:
         while time.time() < deadline:
-            r = c.get(f"{BACKEND_URL}/api/incidents/{incident_id}")
+            try:
+                r = c.get(f"{BACKEND_URL}/api/incidents/{incident_id}")
+            except httpx.RequestError:
+                time.sleep(5)
+                continue
             if r.status_code == 200:
                 data = r.json()
                 if data.get("status") not in ("ANALYZING", None):
+                    # Non-OPEN outcomes (NOISE/INCONCLUSIVE) leave these null;
+                    # coerce so scenarios can concatenate without crashing.
+                    data["root_cause"]   = data.get("root_cause")   or ""
+                    data["failure_mode"] = data.get("failure_mode") or ""
+                    data["confidence"]   = data.get("confidence")   or 0.0
                     return data
             time.sleep(5)
     raise TimeoutError(f"Incident {incident_id} did not complete within {timeout}s")
