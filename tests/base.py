@@ -30,16 +30,41 @@ def kubectl_delete(manifest: str) -> None:
     )
 
 
-def trigger_diagnosis(namespace: str, description: str) -> str:
-    """POST to /api/aiops/analyze and return the incident_id."""
+def _incident_ids(client: httpx.Client, trigger_source: str) -> set:
+    """IDs of incidents created via the given trigger source (newest 50)."""
+    resp = client.get(f"{BACKEND_URL}/api/incidents", params={"limit": 50})
+    if resp.status_code != 200:
+        return set()
+    return {
+        inc["id"] for inc in resp.json()
+        if inc.get("trigger_source") == trigger_source and inc.get("id")
+    }
+
+
+def trigger_diagnosis(namespace: str, pod_name: str, trigger_source: str = "evaluation") -> str:
+    """Fire /api/aiops/analyze and resolve the incident id it creates.
+
+    The endpoint runs the pipeline in the background and returns
+    {"status": "started"} with no id, so we diff the incident list before and
+    after the trigger (filtered to our own trigger_source) to find the new one.
+    This is clock-skew-proof and ignores incidents the collector raises for the
+    same failing pod.
+    """
     with httpx.Client(timeout=10, verify=False, follow_redirects=True) as c:
+        before = _incident_ids(c, trigger_source)
         r = c.post(f"{BACKEND_URL}/api/aiops/analyze", json={
-            "namespace":   namespace,
-            "description": description,
-            "source":      "evaluation-script",
+            "namespace":      namespace,
+            "pod_name":       pod_name,
+            "trigger_source": trigger_source,
         })
         r.raise_for_status()
-        return r.json()["incident_id"]
+        deadline = time.time() + 60
+        while time.time() < deadline:
+            new = _incident_ids(c, trigger_source) - before
+            if new:
+                return new.pop()
+            time.sleep(3)
+    raise TimeoutError(f"No incident appeared for pod '{pod_name}' within 60s")
 
 
 def poll_incident(incident_id: str, timeout: int = 300) -> dict:

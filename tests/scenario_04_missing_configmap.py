@@ -50,7 +50,7 @@ def run() -> ScenarioResult:
     t0 = time.time()
     result.incident_id = trigger_diagnosis(
         namespace=NAMESPACE,
-        description="Pod missing-config-app stuck in CreateContainerConfigError — ConfigMap not found",
+        pod_name="missing-config-app",
     )
 
     print(f"[S4] Polling incident {result.incident_id}...")

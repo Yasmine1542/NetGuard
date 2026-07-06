@@ -49,7 +49,7 @@ def run() -> ScenarioResult:
     t0 = time.time()
     result.incident_id = trigger_diagnosis(
         namespace=NAMESPACE,
-        description="Pod pending-overcommit stuck in Pending — no nodes available",
+        pod_name="pending-overcommit",
     )
 
     print(f"[S3] Polling incident {result.incident_id}...")
