@@ -43,8 +43,8 @@ spec:
           envFrom:
             - configMapRef: { name: netguard-config }
           env:
-            - name: TESTING_ROLLOUTS
-              value: "2" 
+            - name: INFERENCE_MODEL_DIR
+              value: "/bad-model" 
           ports:
             - { containerPort: 8000, name: http, protocol: TCP }
           resources:
